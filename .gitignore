@@ -1,0 +1,13 @@
+# Dữ liệu chạy (không commit: chứa ảnh màn hình + trace)
+runs/
+logs/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Windows
+Thumbs.db
+desktop.ini
