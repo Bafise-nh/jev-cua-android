@@ -1,4 +1,9 @@
-"""Quan sát màn hình Android bằng adb + uiautomator.
+"""Quan sát màn hình Android.
+
+Hai backend:
+- `u2`   — uiautomator2 (server chạy sẵn trên máy): ~0.1 s/lần.
+- `adb`  — `uiautomator dump` qua adb: ~2.2 s/lần (chậm hơn nhưng không cần cài gì).
+- `auto` — dùng u2 nếu import được, tự lùi về adb.
 
 Trả về Frame: danh sách phần tử có id tạm (e1..eN), nhãn, vai trò, vị trí thô,
 cờ enabled/focused/editable, kèm toạ độ thật (chỉ dùng nội bộ, không gửi Jev).
@@ -10,8 +15,17 @@ import re
 import subprocess
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
+from pathlib import Path
+
+try:  # tuỳ chọn: pip install uiautomator2
+    import uiautomator2 as _u2
+except Exception:  # noqa: BLE001 - thiếu gói thì dùng adb
+    _u2 = None
 
 BOUNDS_RE = re.compile(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]")
+_u2_device = None
+
+BACKEND = "auto"
 
 
 @dataclass
@@ -168,17 +182,7 @@ def _role(node: ET.Element) -> str:
     return "text"
 
 
-def observe(screenshot_path: str | None = None) -> Frame:
-    """Chụp trạng thái UI hiện tại. Ném RuntimeError nếu không có thiết bị."""
-    if not devices():
-        raise RuntimeError("Khong co thiet bi/emulator nao (adb devices rong).")
-
-    width, height = screen_size()
-    package = current_package()
-
-    adb("shell", "uiautomator", "dump", "/sdcard/jev-ui.xml")
-    xml_text = adb("exec-out", "cat", "/sdcard/jev-ui.xml")
-
+def _parse(xml_text: str, width: int, height: int, package: str) -> Frame:
     frame = Frame(package=package, width=width, height=height)
     try:
         root = ET.fromstring(xml_text)
@@ -207,7 +211,6 @@ def observe(screenshot_path: str | None = None) -> Frame:
         if label and len(label) <= 120 and label not in texts:
             texts.append(label)
 
-        # Chỉ đưa vào danh sách hành động những gì bấm/gõ/scroll được hoặc có nhãn.
         if not (clickable or scrollable or editable or label):
             continue
 
@@ -234,7 +237,6 @@ def observe(screenshot_path: str | None = None) -> Frame:
             )
         )
 
-    # Gán id ổn định trong frame, bỏ phần tử khổng lồ (root) không có nhãn.
     frame.elements = [
         el
         for el in frame.elements
@@ -246,9 +248,47 @@ def observe(screenshot_path: str | None = None) -> Frame:
 
     frame.screen_text = texts
     frame.secure_input = any(el.password for el in frame.elements)
+    return frame
 
-    if screenshot_path:
-        try:
+
+def _observe_adb(screenshot_path: str | None = None) -> Frame:
+    if not devices():
+        raise RuntimeError("Khong co thiet bi/emulator nao (adb devices rong).")
+
+    width, height = screen_size()
+    package = current_package()
+    adb("shell", "uiautomator", "dump", "/sdcard/jev-ui.xml")
+    frame = _parse(adb("exec-out", "cat", "/sdcard/jev-ui.xml"), width, height, package)
+    return _maybe_screenshot(frame, screenshot_path)
+
+
+def _u2_connect():
+    global _u2_device
+    if _u2_device is None:
+        _u2_device = _u2.connect()
+    return _u2_device
+
+
+def _observe_u2(screenshot_path: str | None = None) -> Frame:
+    device = _u2_connect()
+    info = device.info
+    frame = _parse(
+        device.dump_hierarchy(),
+        int(info["displayWidth"]),
+        int(info["displayHeight"]),
+        info.get("currentPackageName") or "",
+    )
+    return _maybe_screenshot(frame, screenshot_path, device)
+
+
+def _maybe_screenshot(frame: Frame, screenshot_path: str | None, device=None) -> Frame:
+    if not screenshot_path:
+        return frame
+    try:
+        Path(screenshot_path).parent.mkdir(parents=True, exist_ok=True)
+        if device is not None:
+            device.screenshot(screenshot_path)
+        else:
             with open(screenshot_path, "wb") as handle:
                 proc = subprocess.run(
                     ["adb", "exec-out", "screencap", "-p"],
@@ -256,8 +296,19 @@ def observe(screenshot_path: str | None = None) -> Frame:
                     timeout=20,
                 )
                 handle.write(proc.stdout)
-            frame.screenshot = screenshot_path
-        except Exception:
-            frame.screenshot = None
-
+        frame.screenshot = screenshot_path
+    except Exception:  # noqa: BLE001 - ảnh chỉ để debug
+        frame.screenshot = None
     return frame
+
+
+def observe(screenshot_path: str | None = None, backend: str | None = None) -> Frame:
+    """Chụp trạng thái UI hiện tại (tự chọn backend nhanh nhất)."""
+    backend = backend or BACKEND
+    if backend in ("auto", "u2") and _u2 is not None:
+        try:
+            return _observe_u2(screenshot_path)
+        except Exception:
+            if backend == "u2":
+                raise
+    return _observe_adb(screenshot_path)

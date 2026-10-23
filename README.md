@@ -32,7 +32,7 @@ Cùng một bài 2 tap trên emulator (xem [BENCHMARK.md](BENCHMARK.md)):
 | Tự bấm bằng chuột (Windows MCP) | 39 s |
 | Jev, gọi API mỗi bước | 35 s |
 | Jev + cache quyết định | 13 s |
-| **Jev + phát lại kế hoạch** | **3.2 s** |
+| **Jev + phát lại kế hoạch** | **1.8 s** |
 
 ## Yêu cầu
 
@@ -43,9 +43,12 @@ Cùng một bài 2 tap trên emulator (xem [BENCHMARK.md](BENCHMARK.md)):
 
 ```powershell
 $env:EXPERIENTIAL_API_KEY = "..."        # hoặc setx để giữ lại
+
+# tuỳ chọn nhưng nên cài: quan sát nhanh hơn 30 lần (2.2s → 0.07s)
+pip install uiautomator2
 ```
 
-Không cần cài thêm gói Python nào — chỉ dùng thư viện chuẩn.
+Không bắt buộc gói Python nào khác — phần lõi chỉ dùng thư viện chuẩn.
 
 ## Dùng nhanh
 
@@ -68,6 +71,8 @@ python -m cua.run --goal "Dang nhap quan demo" `
 - `--expect "chữ"`: điều kiện thành công của test (lặp lại được). Không có
   `--expect` thì dùng câu hỏi `DONE` của Jev với ngưỡng 0.90.
 - `--no-fast`: tắt phát lại kế hoạch đã học.
+- `--backend u2|adb|auto`: cách lấy cây UI. `u2` cần `pip install uiautomator2`
+  nhưng nhanh hơn ~30 lần (0.07 s so với 2.2 s); `auto` tự chọn.
 - Trace từng bước: `runs/run-*.jsonl`; cache: `runs/decisions.json`,
   kế hoạch: `runs/plans.json`.
 
@@ -116,7 +121,7 @@ Test xanh → thoát 0, không gọi API. Test đỏ → gửi phần cuối log
 ```
 cua/
   jev_client.py   gọi /v1/systemone (không log key)
-  observe.py      adb + uiautomator → Frame (phần tử + toạ độ)
+  observe.py      adb/uiautomator2 → Frame (phần tử + toạ độ)
   agent.py        vòng lặp, guard, cache, phát lại kế hoạch
   run.py          CLI điều khiển app
   triage.py       chạy test + phân loại bằng Jev

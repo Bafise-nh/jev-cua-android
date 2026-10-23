@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from functools import partial
 
 from . import agent, jev_client
 from . import observe as obs
@@ -39,18 +40,24 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--trace-dir", default=str(agent.Path(__file__).parent.parent / "runs"))
     parser.add_argument("--shots", help="Thư mục lưu ảnh chụp từng bước")
     parser.add_argument("--doctor", action="store_true", help="Kiểm tra adb/thiết bị/màn hình")
+    parser.add_argument("--backend", choices=["auto", "u2", "adb"], default="auto",
+                        help="Cách lấy cây UI: u2 (nhanh, cần uiautomator2) / adb / auto")
     parser.add_argument("--dry", action="store_true", help="Chỉ quan sát + in state, không gọi Jev")
     args = parser.parse_args(argv)
 
     if args.doctor:
         devices = obs.devices()
         print(f"devices: {devices or 'KHONG CO'}")
+        print(f"uiautomator2: {'co' if obs._u2 is not None else 'khong (dung adb, cham hon)'}")
         if not devices:
             return 1
-        frame = obs.observe()
+        import time
+        started = time.time()
+        frame = obs.observe(backend=args.backend)
+        elapsed = round((time.time() - started) * 1000)
         print(f"package: {frame.package or '?'}")
         print(f"size: {frame.width}x{frame.height}")
-        print(f"elements: {len(frame.elements)}")
+        print(f"elements: {len(frame.elements)} · {elapsed} ms")
         for el in frame.elements[:8]:
             print(f"  {el.id} {el.label[:40]!r} {el.role} {'editable' if el.editable else ''}")
         return 0
@@ -59,7 +66,7 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("can --goal (hoac --doctor)")
 
     if args.dry:
-        frame = obs.observe()
+        frame = obs.observe(backend=args.backend)
         operations = agent.legal_operations(frame, _parse_fills(args.fill))
         state = frame.to_state(args.goal, [], operations)
         print(json.dumps(state, ensure_ascii=False, indent=2))
@@ -74,6 +81,7 @@ def main(argv: list[str] | None = None) -> int:
             fills=_parse_fills(args.fill),
             expect=args.expect,
             fast=not args.no_fast,
+            observer=partial(obs.observe, backend=args.backend),
             max_steps=args.steps,
             max_seconds=args.seconds,
             screenshot_dir=args.shots,

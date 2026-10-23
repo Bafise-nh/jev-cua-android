@@ -12,17 +12,19 @@ màn hình.
 | Jev-CUA gọi API mỗi bước | 35.3 s | 3 bước, trễ API 7–17 s/bước |
 | Jev-CUA + cache quyết định | 12.9 s | 0 ms/bước quyết định |
 | Jev-CUA + replay theo nhãn | 5.5 s | 2 lần quan sát |
-| **Jev-CUA + replay theo toạ độ** | **3.2 s** | 1 lần quan sát (kiểm tra cuối) |
+| Jev-CUA + replay theo toạ độ (adb) | 3.2 s | quan sát 2.2 s |
+| **Jev-CUA + replay theo toạ độ (uiautomator2)** | **1.8 s** | quan sát 0.04–0.13 s |
 | Jev bản đầu (hỏi "xong chưa?", ngưỡng 0.90) | 123 s ❌ | kẹt ở DONE 0.85–0.89 |
 
-→ Chạy lặp lại nhanh hơn tự bấm **~12 lần**; vẫn giữ kiểm tra bằng chứng trên
+→ Chạy lặp lại nhanh hơn tự bấm **~20 lần**; vẫn giữ kiểm tra bằng chứng trên
 màn hình.
 
 ## Thời gian từng pha
 
 | Pha | Thời gian | Ghi chú |
 |---|---|---|
-| `uiautomator dump` | 2.2–2.3 s | sàn cứng: `--compressed`, `/dev/tty`, tắt animation đều không đổi |
+| `uiautomator dump` (adb) | 2.2–2.3 s | `--compressed`, `/dev/tty`, tắt animation đều không đổi |
+| `uiautomator2` (`--backend u2`) | **0.04–0.13 s** | server chạy sẵn trên máy; `pip install uiautomator2` |
 | Gọi Jev | **7–17 s** | không phụ thuộc kích thước state (272 token = 10.7 s; 3.172 token = 6.9 s) → mạng/provider |
 | Bấm | ~0.15 s | `adb shell input tap` |
 | Kiểm tra `--expect` | ~0 ms | so chuỗi trên cây UI |
@@ -38,6 +40,8 @@ màn hình.
    công; lần sau phát lại, kiểm tra bằng chứng ở cuối.
 4. **Phát lại theo toạ độ thiết bị** (kèm độ phân giải) → bỏ được lần quan sát
    đầu, chỉ còn 1 lần kiểm tra cuối.
+5. **Backend `uiautomator2`** (tuỳ chọn): server chạy sẵn trên máy nên quan sát
+   còn 0.04–0.13 s thay vì 2.2 s → replay 3.2 s → **1.8 s**.
 
 ## An toàn
 
