@@ -76,6 +76,12 @@ python -m cua.run --goal "Dang nhap quan demo" `
 - Trace từng bước: `runs/run-*.jsonl`; cache: `runs/decisions.json`,
   kế hoạch: `runs/plans.json`.
 
+## Bàn giao cho agent khác
+
+Xem **[HUONG_DAN_AGENT.md](HUONG_DAN_AGENT.md)**: checklist mở session mới,
+lệnh mẫu, cách quan sát rồi tự bấm (không cần model), luật an toàn và bảng
+lỗi thường gặp.
+
 ## Phân loại kết quả test (không cần thiết bị)
 
 ```powershell
