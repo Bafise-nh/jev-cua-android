@@ -51,6 +51,27 @@ Nếu `--doctor` báo thiếu thiết bị: bật emulator hoặc cắm máy, đ
 **Không dùng cờ `-dns-server` khi bật emulator** — đã gặp trường hợp emulator
 mất phân giải tên miền, ứng dụng đứng ở màn hình chờ. Bật mặc định là đủ.
 
+### Key và endpoint (cập nhật 26/10/2026)
+
+| Cách | Endpoint | Trạng thái |
+|---|---|---|
+| Key `experientiallabs` trong `auth.json` của opencode | `api.experientiallabs.ai/v1/systemone` | **đang dùng được** |
+| Gateway OpenCode (zen) | `opencode.ai/zen/v1/systemone` | 429 `FreeUsageLimit` |
+| Key lấy trên platform.experientiallabs.ai | — | đã hết hạn mức |
+
+Quy tắc: cứ dùng key trong `auth.json` (hoặc `EXPERIENTIAL_API_KEY`), model
+`jev-latest`, endpoint mặc định. **Đừng đổi sang gateway zen** và đừng xin key
+mới trên platform — không cần.
+
+Kiểm tra nhanh (1–2 giây, không cần thiết bị):
+
+```powershell
+python -m cua.diagnose --text "Error: Failed to compile application for the Web."
+```
+
+Ra `cause / next / conf` là key còn sống. Ra 401/403 mới phải xử lý key.
+
+
 ---
 
 ## 2. Cách nhanh nhất: một lệnh, có bằng chứng
@@ -256,5 +277,10 @@ step_*.py          ví dụ thật của một vòng đăng nhập/đặt món (
 runs/              vết chạy + plans.json (kế hoạch đã học)
 tests/             test của chính tool
 ```
+
+Công cụ anh em cho **web**: `..\jev-web` (Node + Chrome DevTools Protocol +
+semantics của Flutter web). Dùng nó khi cần kiểm thử giao diện trên trình
+duyệt; đừng dùng repo này cho web. Hướng dẫn riêng:
+`..\jev-web\HUONG_DAN_AGENT.md`.
 
 Giấy phép MIT. Key và dữ liệu chạy không nằm trong repo.
